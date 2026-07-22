@@ -34,6 +34,7 @@ final class TeleprompterModel {
     static let captureExclusion = "teleprompter.captureExclusion"
     static let islandBackgroundColor = "teleprompter.islandBackgroundColor"
     static let islandBackgroundOpacity = "teleprompter.islandBackgroundOpacity"
+    static let markdownMode = "teleprompter.markdownMode"
   }
 
   @ObservationIgnored private let defaults: UserDefaults
@@ -88,6 +89,15 @@ final class TeleprompterModel {
     }
   }
 
+  var markdownMode: Bool {
+    didSet {
+      defaults.set(markdownMode, forKey: DefaultsKey.markdownMode)
+      guard markdownMode != oldValue else { return }
+      pendingScrollProgress = progress
+      pause()
+    }
+  }
+
   var isPlaying = false
   var scrollOffset = 0.0
   var scrollLimit = 0.0
@@ -136,6 +146,8 @@ final class TeleprompterModel {
       max(savedBackgroundOpacity, Self.islandBackgroundOpacityRange.lowerBound),
       Self.islandBackgroundOpacityRange.upperBound
     )
+
+    markdownMode = defaults.bool(forKey: DefaultsKey.markdownMode)
 
     if defaults.object(forKey: DefaultsKey.captureExclusion) == nil {
       captureExclusionEnabled = true

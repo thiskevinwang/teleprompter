@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+
+		A11C0DE00000000000000001 /* Textual in Frameworks */ = {isa = PBXBuildFile; productRef = A11C0DE00000000000000003 /* Textual */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		0A2BE90C30085C2D001790E5 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +57,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A11C0DE00000000000000001 /* Textual in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +118,7 @@
 			);
 			name = teleprompter;
 			packageProductDependencies = (
+				A11C0DE00000000000000003 /* Textual */,
 			);
 			productName = teleprompter;
 			productReference = 0A2BE8FC30085C2C001790E5 /* teleprompter.app */;
@@ -195,6 +202,9 @@
 			);
 			mainGroup = 0A2BE8F330085C2C001790E5;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A11C0DE00000000000000002 /* XCRemoteSwiftPackageReference "textual" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0A2BE8FD30085C2C001790E5 /* Products */;
 			projectDirPath = "";
@@ -267,6 +277,25 @@
 			targetProxy = 0A2BE91630085C2D001790E5 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A11C0DE00000000000000002 /* XCRemoteSwiftPackageReference "textual" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/textual";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.5.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A11C0DE00000000000000003 /* Textual */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A11C0DE00000000000000002 /* XCRemoteSwiftPackageReference "textual" */;
+			productName = Textual;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0A2BE91D30085C2D001790E5 /* Debug */ = {

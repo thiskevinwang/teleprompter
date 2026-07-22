@@ -7,6 +7,7 @@
 
 import AppKit
 import SwiftUI
+import Textual
 
 struct ContentView: View {
   @Bindable var model: TeleprompterModel
@@ -416,31 +417,38 @@ struct ContentView: View {
 private struct TeleprompterReader: View {
   @Bindable var model: TeleprompterModel
   @State private var contentHeight: CGFloat = 0
+  @State private var draft = ""
+  @State private var isEditing = false
+  @FocusState private var isEditorFocused: Bool
 
   var body: some View {
     TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !model.isPlaying)) { timeline in
       GeometryReader { viewport in
         ZStack(alignment: .topLeading) {
-          ZStack(alignment: .topLeading) {
-            readerText(in: viewport.size)
-              .offset(y: -model.scrollOffset)
-          }
-          .frame(width: viewport.size.width, height: viewport.size.height, alignment: .topLeading)
-          .clipped()
-          .mask {
-            LinearGradient(
-              stops: [
-                .init(color: .clear, location: 0),
-                .init(color: .black, location: 0.08),
-                .init(color: .black, location: 0.9),
-                .init(color: .clear, location: 1),
-              ],
-              startPoint: .top,
-              endPoint: .bottom
-            )
-          }
+          if isEditing {
+            scriptEditor
+          } else {
+            ZStack(alignment: .topLeading) {
+              readerText(in: viewport.size)
+                .offset(y: -model.scrollOffset)
+            }
+            .frame(width: viewport.size.width, height: viewport.size.height, alignment: .topLeading)
+            .clipped()
+            .mask {
+              LinearGradient(
+                stops: [
+                  .init(color: .clear, location: 0),
+                  .init(color: .black, location: 0.08),
+                  .init(color: .black, location: 0.9),
+                  .init(color: .clear, location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+              )
+            }
 
-          readingGuide(in: viewport.size)
+            readingGuide(in: viewport.size)
+          }
         }
         .onPreferenceChange(PromptContentHeightKey.self) { newHeight in
           contentHeight = newHeight
@@ -460,10 +468,37 @@ private struct TeleprompterReader: View {
     }
     .background(.black.opacity(0.16))
     .overlay {
-      PromptScrollCapture(lineScrollDistance: max(24, model.fontSize * 0.8)) { delta in
-        model.scroll(by: delta)
+      if !isEditing {
+        PromptScrollCapture(lineScrollDistance: max(24, model.fontSize * 0.8)) { delta in
+          model.scroll(by: delta)
+        }
+        .accessibilityHidden(true)
       }
-      .accessibilityHidden(true)
+    }
+    .overlay(alignment: .topTrailing) {
+      if !isEditing {
+        HStack(spacing: 6) {
+          Button {
+            model.markdownMode.toggle()
+          } label: {
+            Label("Markdown mode", systemImage: "textformat")
+              .labelStyle(.iconOnly)
+          }
+          .buttonStyle(PrompterControlButtonStyle(isActive: model.markdownMode))
+          .help(model.markdownMode ? "Disable Markdown viewer mode" : "Enable Markdown viewer mode")
+          .accessibilityValue(model.markdownMode ? "On" : "Off")
+          .accessibilityIdentifier("teleprompter.markdownMode")
+
+          Button(action: beginEditing) {
+            Label(model.markdownMode ? "Edit Markdown" : "Edit script", systemImage: "pencil")
+              .labelStyle(.iconOnly)
+          }
+          .buttonStyle(PrompterControlButtonStyle())
+          .help(model.markdownMode ? "Edit Markdown source" : "Edit script directly")
+          .accessibilityIdentifier("teleprompter.editScript")
+        }
+        .padding(12)
+      }
     }
     .overlay(alignment: .top) {
       Rectangle()
@@ -472,22 +507,67 @@ private struct TeleprompterReader: View {
     }
   }
 
+  private var scriptEditor: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack {
+        Text(model.markdownMode ? "Editing Markdown" : "Editing script")
+          .font(.system(size: 12, weight: .semibold, design: .rounded))
+          .foregroundStyle(.white.opacity(0.62))
+        if model.markdownMode {
+          Text("Save to preview formatted text")
+            .font(.system(size: 11, design: .rounded))
+            .foregroundStyle(.white.opacity(0.42))
+        }
+        Spacer()
+        Button("Cancel", action: cancelEditing)
+          .buttonStyle(.plain)
+          .foregroundStyle(.white.opacity(0.68))
+        Button("Done", action: applyEditing)
+          .buttonStyle(.borderedProminent)
+          .tint(.orange)
+          .keyboardShortcut(.defaultAction)
+          .accessibilityIdentifier("teleprompter.applyDirectScript")
+      }
+
+      TextEditor(text: $draft)
+        .font(editorFont)
+        .lineSpacing(editorLineSpacing)
+        .scrollContentBackground(.hidden)
+        .focused($isEditorFocused)
+        .padding(10)
+        .background(
+          .black.opacity(0.24),
+          in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+        )
+        .overlay {
+          RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .strokeBorder(.white.opacity(0.12))
+        }
+        .accessibilityLabel(model.markdownMode ? "Markdown source" : "Script content")
+        .accessibilityIdentifier("teleprompter.directScriptEditor")
+    }
+    .padding(20)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    .onExitCommand(perform: cancelEditing)
+  }
+
   private func readerText(in viewport: CGSize) -> some View {
     VStack(alignment: .leading, spacing: 0) {
       Color.clear.frame(height: max(30, viewport.height * 0.34))
 
       if model.script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-        Text("Open settings to add your script.")
-          .foregroundStyle(.white.opacity(0.35))
+        Text(
+          model.markdownMode
+            ? "Edit Markdown to add your script."
+            : "Edit your script to get started."
+        )
+        .foregroundStyle(.white.opacity(0.35))
       } else {
-        Text(model.script)
-          .foregroundStyle(.white.opacity(0.96))
+        renderedScript
       }
 
       Color.clear.frame(height: max(50, viewport.height * 0.64))
     }
-    .font(.system(size: model.fontSize, weight: .semibold, design: .rounded))
-    .lineSpacing(model.fontSize * 0.34)
     .multilineTextAlignment(.leading)
     .frame(width: max(1, viewport.width - 64), alignment: .leading)
     .fixedSize(horizontal: false, vertical: true)
@@ -498,6 +578,46 @@ private struct TeleprompterReader: View {
       }
     }
     .accessibilityValue(model.script)
+  }
+
+  @ViewBuilder private var renderedScript: some View {
+    if model.markdownMode {
+      StructuredText(markdown: model.script)
+        .font(.system(size: model.fontSize, weight: .regular, design: .default))
+        .textual.structuredTextStyle(.gitHub)
+    } else {
+      Text(model.script)
+        .font(.system(size: model.fontSize, weight: .semibold, design: .rounded))
+        .lineSpacing(model.fontSize * 0.34)
+        .foregroundStyle(.white.opacity(0.96))
+    }
+  }
+
+  private var editorFont: Font {
+    if model.markdownMode {
+      return .system(size: max(14, model.fontSize * 0.55), weight: .medium, design: .monospaced)
+    }
+    return .system(size: model.fontSize, weight: .semibold, design: .rounded)
+  }
+
+  private var editorLineSpacing: CGFloat {
+    model.markdownMode ? max(3, model.fontSize * 0.12) : model.fontSize * 0.34
+  }
+
+  private func beginEditing() {
+    model.pause()
+    draft = model.script
+    isEditing = true
+    isEditorFocused = true
+  }
+
+  private func cancelEditing() {
+    isEditing = false
+  }
+
+  private func applyEditing() {
+    model.replaceScript(with: draft)
+    isEditing = false
   }
 
   private func readingGuide(in viewport: CGSize) -> some View {
@@ -564,7 +684,7 @@ private struct SettingsPopover: View {
         VStack(alignment: .leading, spacing: 3) {
           Text("Playback Settings")
             .font(.system(size: 17, weight: .semibold, design: .rounded))
-          Text("Tune the look, pace, type, and script.")
+          Text("Tune the look, pace, type, and script format.")
             .font(.caption)
             .foregroundStyle(.secondary)
         }
@@ -646,9 +766,13 @@ private struct SettingsPopover: View {
 
       Divider()
 
+      Toggle("Render Markdown as rich text", isOn: $model.markdownMode)
+        .toggleStyle(PrompterSwitchToggleStyle())
+        .accessibilityIdentifier("teleprompter.markdownMode")
+
       VStack(alignment: .leading, spacing: 8) {
         HStack {
-          Text("Script")
+          Text(model.markdownMode ? "Markdown" : "Script")
             .font(.headline)
           Spacer()
           Text("\(draft.count) characters")
@@ -658,7 +782,7 @@ private struct SettingsPopover: View {
         }
 
         TextEditor(text: $draft)
-          .font(.system(size: 14, design: .rounded))
+          .font(.system(size: 14, design: model.markdownMode ? .monospaced : .rounded))
           .scrollContentBackground(.hidden)
           .padding(8)
           .background(
@@ -668,7 +792,7 @@ private struct SettingsPopover: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
               .strokeBorder(.primary.opacity(0.1))
           }
-          .accessibilityLabel("Script content")
+          .accessibilityLabel(model.markdownMode ? "Markdown source" : "Script content")
           .accessibilityIdentifier("teleprompter.scriptEditor")
       }
       .frame(minHeight: 190)

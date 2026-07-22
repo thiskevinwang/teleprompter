@@ -97,6 +97,32 @@ final class TeleprompterUITests: XCTestCase {
   }
 
   @MainActor
+  func testScriptCanBeEditedWithoutOpeningSettings() throws {
+    let app = XCUIApplication()
+    app.launchArguments = ["--ui-testing"]
+    app.launch()
+
+    let editButton = app.buttons["teleprompter.editScript"]
+    XCTAssertTrue(editButton.waitForExistence(timeout: 3))
+    let markdownButton = app.buttons["teleprompter.markdownMode"]
+    XCTAssertTrue(markdownButton.exists)
+    markdownButton.click()
+    editButton.click()
+
+    let editor = app.textViews["teleprompter.directScriptEditor"]
+    XCTAssertTrue(editor.waitForExistence(timeout: 2))
+    editor.click()
+    editor.typeKey("a", modifierFlags: .command)
+    editor.typeText("# A revised script\\n\\n**Formatted on return**")
+    app.buttons["teleprompter.applyDirectScript"].click()
+
+    XCTAssertTrue(editButton.waitForExistence(timeout: 2))
+    XCTAssertEqual(
+      app.descendants(matching: .any)["teleprompter.reader"].value as? String,
+      "# A revised script\\n\\n**Formatted on return**")
+  }
+
+  @MainActor
   func testLaunchPerformance() throws {
     // This measures how long it takes to launch your application.
     measure(metrics: [XCTApplicationLaunchMetric()]) {

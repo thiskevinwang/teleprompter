@@ -101,6 +101,7 @@ struct TeleprompterTests {
     model.play(now: 10)
     model.islandBackgroundColor = Color(.sRGB, red: 0.2, green: 0.4, blue: 0.6)
     model.islandBackgroundOpacity = 0.45
+    model.markdownMode = true
 
     #expect(model.isPlaying)
 
@@ -112,6 +113,7 @@ struct TeleprompterTests {
     #expect(abs(restoredColor.greenComponent - 0.4) < 0.01)
     #expect(abs(restoredColor.blueComponent - 0.6) < 0.01)
     #expect(restoredModel.islandBackgroundOpacity == 0.45)
+    #expect(restoredModel.markdownMode)
   }
 
   @Test func fontChangePreservesNormalizedPositionAndPauses() {
